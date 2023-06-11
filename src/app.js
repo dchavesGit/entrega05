@@ -1,9 +1,10 @@
 import express from "express";
-import prouductsRouter from "./routes/productsManager.routes.js";
+import productsRouter from "./routes/productsManager.routes.js";
 import cartsRouter from "./routes/cartsManager.routes.js";
-import { Server } from "socket.io";
+import mongoose from "mongoose";
 import handlebars from "express-handlebars";
 import __dirname from "./utils.js";
+import viewsRouter from "./routes/views.router.js";
 
 const app = express();
 
@@ -15,13 +16,16 @@ app.engine("handlebars", handlebars.engine());
 app.set("views", `${__dirname}/views`);
 app.set("view engine", "handlebars");
 
-app.use("/api/products", prouductsRouter);
+app.use("/", viewsRouter);
+app.use("/api/products", productsRouter);
 app.use("/api/carts", cartsRouter);
+try {
+  await mongoose.connect(
+    "mongodb+srv://dchaves:Pirulo123@cluster39760dc.ozdm3aq.mongodb.net/SegundaEntrega?retryWrites=true&w=majority"
+  );
+  console.log("DB connected");
+} catch (error) {
+  console.log(error);
+}
 
-const server = app.listen(8080, () =>
-  console.log("Listening server on port 8080")
-);
-
-const io = new Server(server);
-
-app.set("socketio", io);
+app.listen(8080, () => console.log("Listening server on port 8080"));

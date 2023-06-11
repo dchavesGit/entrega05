@@ -1,50 +1,41 @@
 import { Router } from "express";
-import ProductManager from "../managers/ProductManager.js";
+import ProductManager from "../dao/dbManagers/ProductManager.js";
 
 const router = Router();
 
-const productManager = new ProductManager("./files/productos.json");
-
+const productManager = new ProductManager();
+const SORT_ORDER = { asc: 1, desc: -1 };
 router.get("/", async (req, res) => {
-  // CHECK
   try {
-    const products = await productManager.getAll();
-    const { limit } = req.query;
-    if (!limit) {
-    } else {
-      if (limit < products.length) {
-        products.splice(limit - products.length);
-      }
-    }
-    res.render("home", { products });
+    const { page = 1, limit = 10, sort, query } = req.query; //toma valor por defectro de este query param en uno, si es que no tiene valor
+    const { docs, hasPrevPage, hasNextPage, nextPage, prevPage } =
+      await productManager.paginate(query, {
+        limit,
+        page,
+        lean: true,
+        sort: sort ? { price: SORT_ORDER[sort.toLowerCase()] } : {},
+      });
+    const products = docs;
   } catch (error) {
     console.log(error);
   }
 });
-router.get("/realtimeproducts", async (req, res) => {
-  res.render("realTimeProducts", { products: await productManager.getAll() });
-});
+
 router.get("/:pid", async (req, res) => {
-  // CHECK
   try {
-    const products = await productManager.getAll();
-    const productId = Number(req.params.pid);
-    const productSelected = products.find((p) => p.id === productId);
-    console.log(productId);
-    console.log(productSelected);
-    if (!productSelected) {
-      res.send({ error: "Product not found" });
+    const { pid } = req.params;
+    const product = await productManager.getProductById(pid);
+    if (!product) {
+      res.status(400).send({ status: "error", error: "product not found" });
     } else {
-      res.send({ status: "product found", productSelected });
+      res.send({ status: "product found", product });
     }
   } catch (error) {
-    console.log(error);
-    res.send(error);
+    res.status(400).send({ status: "error", error: error });
   }
 });
 
 router.post("/", async (req, res) => {
-  // CHECK
   try {
     const product = req.body;
     if (!product.status) {
@@ -60,31 +51,31 @@ router.post("/", async (req, res) => {
       product.category,
       product.thumbnail
     );
-    const io = req.app.get("socketio");
-    console.log(result);
-    io.emit("productAdd", JSON.stringify(result));
-    console.log(JSON.stringify(result));
     res.send({ status: "added success", result });
   } catch (error) {
-    console.log(error);
+    res.status(400).send({ status: "error", error: error });
   }
 });
 
 router.put("/:pid", async (req, res) => {
-  //CHECK
   let update = req.body;
-  const id = Number(req.params.pid);
-  let productUpdated = await productManager.updateProduct(id, update);
-  return res.send({ status: "success", productUpdated });
+  const { pid } = req.params;
+  try {
+    let productUpdated = await productManager.updateProduct(pid, update);
+    return res.send({ status: "success", productUpdated });
+  } catch (error) {
+    res.status(400).send({ status: "error", error: error });
+  }
 });
 
 router.delete("/:pid", async (req, res) => {
-  //CHECK
-  const id = Number(req.params.pid);
-  await productManager.deleteProduct(id);
-  const io = req.app.get("socketio");
-  io.emit("productDelete", id);
-  res.send({ status: "success product deleted" });
+  const { pid } = req.params;
+  try {
+    const result = await productManager.deleteProduct({ _id: pid });
+    res.send({ result: "success delete", payload: result });
+  } catch (error) {
+    res.status(400).send({ error });
+  }
 });
 
 export default router;
