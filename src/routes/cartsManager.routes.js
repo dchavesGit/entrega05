@@ -37,6 +37,7 @@ router.put("/:cid/products/:pid", async (req, res) => {
       productId,
       productQuantity
     );
+    console.log(cartSelected);
     res.send({ status: "product updated", payload: cartSelected });
   } catch (error) {
     res.status(400).send({ status: "Error, cannot update cart", error: error });

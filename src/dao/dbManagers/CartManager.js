@@ -1,4 +1,3 @@
-import mongoose from "mongoose";
 import cartModel from "../models/carts.model.js";
 
 export default class CartManager {
@@ -30,20 +29,29 @@ export default class CartManager {
       product: productId,
       quantity: quantity,
     };
-    const cart = await cartModel.findOne({ _id: id });
-    console.log(cart);
-    const cartProducts = cart.products;
+    let cart = await cartModel.findOne({ _id: id });
     if (!cart) {
       console.log("No se encontro el carrito a actualizar.");
       return;
-    }
-    const cartProduct = cartProducts.find((p) => p.product === productId);
-    if (!cartProduct) {
-      cartProducts.push(productDefault);
     } else {
-      cartProduct.quantity += quantity;
+      console.log(cart);
+      const cartProducts = cart.products;
+      const cartProduct = cartProducts.find(
+        (p) => p.product.toString() === productId
+      );
+      if (!cartProduct) {
+        cart = await cartModel.updateOne(
+          { _id: id },
+          { $push: { products: productDefault } }
+        );
+      } else {
+        cart = await cartModel.updateOne(
+          { _id: id, "products.product": productId },
+          { $inc: { "products.$.quantity": 1 } }
+        );
+      }
+      return cart;
     }
-    return await cartModel.updateOne({ _id: id }, cart);
   };
 
   deleteCart = async (id) => {
